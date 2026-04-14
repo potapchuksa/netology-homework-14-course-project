@@ -103,6 +103,22 @@ Cоздайте ВМ, разверните на ней Elasticsearch. Устан
 
 # Решение
 
+Для проекта необходимы следующие файлы (т.к. доступ к ресурсам ELK и Grafana ограничен):
+
+  - ansible/files/elasticsearch-9.1.5-amd64.deb
+  - ansible/files/filebeat-9.1.5-amd64.deb
+  - ansible/files/grafana_12.0.1_amd64.deb
+  - ansible/files/kibana-9.1.5-amd64.deb
+
+Поэтому скачайте пакеты на машине, у которой есть доступ к этим ресурсам, и перенесите их в нужное место в проекте.
+
+```bash
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.1.5-amd64.deb
+wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-9.1.5-amd64.deb
+wget https://artifacts.elastic.co/downloads/kibana/kibana-9.1.5-amd64.deb
+wget https://dl.grafana.com/oss/release/grafana_12.0.1_amd64.deb
+```
+
 В папке `terraform` запустите
 
 ```bash
