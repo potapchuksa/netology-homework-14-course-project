@@ -1,0 +1,38 @@
+# Automatically generated Terraform
+# ansible-inventory -i hosts.ini --graph
+
+[bastion]
+bastion ansible_host=${bastion_public_ip}
+
+[webservers]
+web-01 ansible_host=${web_01_private_ip}
+web-02 ansible_host=${web_02_private_ip}
+
+[prometheus]
+prometheus ansible_host=${prometheus_private_ip}
+
+[elasticsearch]
+elastic ansible_host=${elasticsearch_private_ip}
+
+[grafana]
+grafana ansible_host=${grafana_public_ip}
+
+[kibana]
+kibana ansible_host=${kibana_public_ip}
+
+# Group of all private hosts
+[internal:children]
+webservers
+prometheus
+elasticsearch
+grafana
+kibana
+
+# Group variables
+[all:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+ansible_python_interpreter=/usr/bin/python3
+
+[internal:vars]
+ansible_ssh_common_args=-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ~/.ssh/id_rsa -o ConnectTimeout=30 -W %h:%p ubuntu@${bastion_public_ip}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes

@@ -1,0 +1,38 @@
+---
+- name: Install Kibana from local .deb
+  hosts: kibana
+  become: yes
+  vars:
+    kibana_deb_file: kibana-9.1.5-amd64.deb
+  vars_files:
+    - vault_elastic.yml
+
+  tasks:
+    - name: Copy Kibana .deb package to target
+      copy:
+        src: "files/{{ kibana_deb_file }}"
+        dest: "/tmp/kibana.deb"
+        mode: '0644'
+
+    - name: Install Kibana
+      apt:
+        deb: /tmp/kibana.deb
+        state: present
+
+    - name: Configure Kibana
+      lineinfile:
+        path: /etc/kibana/kibana.yml
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^#?server.host:', line: 'server.host: "0.0.0.0"' }
+        - { regexp: '^#?elasticsearch.hosts:', line: 'elasticsearch.hosts: ["https://{{ hostvars.elastic.ansible_host }}:9200"]' }
+        - { regexp: '^#?elasticsearch.username:', line: 'elasticsearch.username: "kibana_system"' }
+        - { regexp: '^#?elasticsearch.password:', line: 'elasticsearch.password: "{{ vault_kibana_system_password }}"' }
+        - { regexp: '^#?elasticsearch.ssl.verificationMode:', line: 'elasticsearch.ssl.verificationMode: "none"' }
+
+    - name: Enable and start Kibana
+      systemd:
+        name: kibana
+        enabled: yes
+        state: started

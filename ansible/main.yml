@@ -1,0 +1,15 @@
+---
+# Master playbook
+
+- import_playbook: playbook.yml
+
+- import_playbook: prometheus.yml
+
+- import_playbook: grafana.yml
+
+- import_playbook: elastic.yml
+
+- import_playbook: filebeats.yml
+
+- import_playbook: kibana.yml
+

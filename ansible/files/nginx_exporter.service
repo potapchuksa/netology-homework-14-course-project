@@ -1,0 +1,11 @@
+[Unit]
+Description=Nginx Prometheus Exporter
+After=network.target
+
+[Service]
+User=ubuntu
+ExecStart=/opt/nginx_exporter/nginx-prometheus-exporter -nginx.scrape-uri=http://localhost/stub_status
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

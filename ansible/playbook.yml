@@ -1,0 +1,135 @@
+---
+- name: Installation and configuration of web servers with monitoring
+  hosts: webservers
+  become: yes
+
+  pre_tasks:
+    - name: Updating the package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  tasks:
+    - name: Installing Nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Deploying a test site
+      copy:
+        content: |
+          <html>
+          <head><title>Netology Course Project</title></head>
+          <body>
+            <h1>Hello from {{ inventory_hostname }}!</h1>
+            <p>This is a static site deployed via Ansible.</p>
+          </body>
+          </html>
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Setting up stub_status for Nginx
+      copy:
+        content: |
+          server {
+              listen 80;
+              server_name localhost;
+              location /stub_status {
+                  stub_status;
+                  allow 127.0.0.1;
+                  deny all;
+              }
+          }
+        dest: /etc/nginx/sites-available/status.conf
+
+    - name: Activating configuration status
+      file:
+        src: /etc/nginx/sites-available/status.conf
+        dest: /etc/nginx/sites-enabled/status.conf
+        state: link
+
+    - name: Checking Nginx configuration
+      command: nginx -t
+      changed_when: false
+
+    - name: Enabling and starting Nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+    # === Installing Node Exporter ===
+    - name: Download Node Exporter
+      get_url:
+        url: https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+        dest: /tmp/node-exporter.tar.gz
+        force: yes
+
+    - name: Create Node Exporter directory
+      file:
+        path: /opt/node-exporter
+        state: directory
+        mode: '0755'
+
+    - name: Unzip Node Exporter
+      unarchive:
+        src: /tmp/node-exporter.tar.gz
+        dest: /opt/node-exporter
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+        creates: /opt/node-exporter/node_exporter
+
+    - name: Copy the Node Exporter service
+      copy:
+        src: files/node_exporter.service
+        dest: /etc/systemd/system/node_exporter.service
+
+    - name: Run Node Exporter
+      systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+
+    # === Installing Nginx Log Exporter ===
+    - name: Download Nginx Log Exporter
+      get_url:
+        url: https://github.com/martin-helmich/prometheus-nginxlog-exporter/releases/download/v1.11.0/prometheus-nginxlog-exporter_1.11.0_linux_amd64.tar.gz
+        dest: /tmp/nginxlog-exporter.tar.gz
+        force: yes
+
+    - name: Create Nginx Log Exporter directory
+      file:
+        path: /opt/nginxlog-exporter
+        state: directory
+        mode: '0755'
+
+    - name: Unzip Nginx Log Exporter
+      unarchive:
+        src: /tmp/nginxlog-exporter.tar.gz
+        dest: /opt/nginxlog-exporter/
+        remote_src: yes
+        creates: /opt/nginxlog-exporter/prometheus-nginxlog-exporter
+
+    - name: Create Nginx Log Exporter Config directory
+      file:
+        path: /etc/nginxlog-exporter
+        state: directory
+        mode: '0755'
+
+    - name: Copy the Nginx Log Exporter config
+      copy:
+        src: files/nginxlog-exporter-config.yml
+        dest: /etc/nginxlog-exporter/config.yml
+
+    - name: Copy the Nginx Log Exporter service
+      copy:
+        src: files/nginxlog-exporter.service
+        dest: /etc/systemd/system/nginxlog-exporter.service
+
+    - name: Run Nginx Log Exporter
+      systemd:
+        name: nginxlog-exporter
+        enabled: yes
+        state: started

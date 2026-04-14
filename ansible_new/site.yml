@@ -1,0 +1,40 @@
+---
+- name: Deploy web servers with monitoring
+  hosts: webservers
+  become: yes
+  pre_tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+  roles:
+    - nginx
+    - node_exporter
+    - nginxlog_exporter
+    - filebeat
+
+- name: Deploy Elasticsearch
+  hosts: elastic
+  become: yes
+  roles:
+    - elasticsearch
+
+- name: Deploy Kibana
+  hosts: kibana
+  become: yes
+  vars_files:
+    - vault_elastic.yml
+  roles:
+    - kibana
+
+- name: Deploy Prometheus
+  hosts: prometheus
+  become: yes
+  roles:
+    - prometheus
+
+- name: Deploy Grafana
+  hosts: grafana
+  become: yes
+  roles:
+    - grafana

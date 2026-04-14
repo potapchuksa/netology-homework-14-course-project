@@ -1,0 +1,37 @@
+---
+- name: Installation and configuration of filebeats
+  hosts: webservers
+  become: yes
+  vars_files:
+    - vault_elastic.yml
+
+  tasks:
+    # === Installing Filebeat ===
+    - name: Copy Filebeat .deb packege to target
+      copy:
+        src: files/filebeat-9.1.5-amd64.deb
+        dest: /tmp/filebeat.deb
+
+    - name: Install Filebeat from .deb package
+      apt:
+        deb: /tmp/filebeat.deb
+        state: present
+
+    - name: Set up Filebeat
+      template:
+        src: templates/filebeat.yml.j2
+        dest: /etc/filebeat/filebeat.yml
+        mode: '0644'
+    - name: Load Filebeat index template into Elasticsearch
+      command: filebeat setup --index-management
+      args:
+        chdir: /etc/filebeat
+      run_once: true
+      delegate_to: "{{ groups['webservers'][0] }}"
+
+    - name: Run Filebeat
+      systemd:
+        name: filebeat
+        enabled: yes
+        state: started
+

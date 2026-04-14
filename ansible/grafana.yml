@@ -1,0 +1,100 @@
+---
+- name: Install Grafana from local .deb package
+  hosts: grafana
+  become: yes
+  vars:
+    grafana_deb_file: grafana_12.0.1_amd64.deb
+
+  tasks:
+    - name: Copy Grafana .deb package to target
+      copy:
+        src: "files/{{ grafana_deb_file }}"
+        dest: "/tmp/grafana.deb"
+        mode: '0644'
+
+    - name: Install Grafana from local package
+      apt:
+        deb: /tmp/grafana.deb
+
+    - name: Provision Prometheus datasource
+      template:
+        src: templates/datasource-prometheus.yaml.j2
+        dest: /etc/grafana/provisioning/datasources/prometheus.yaml
+        mode: '0644'
+
+    - name: Enable and start Grafana
+      systemd:
+        name: grafana-server
+        enabled: yes
+        state: started
+
+    - name: Wait for Grafana to be ready
+      uri:
+        url: "http://localhost:3000/api/health"
+        method: GET
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 10
+      delay: 5
+
+    - name: Get Prometheus datasource UID
+      uri:
+        url: "http://localhost:3000/api/datasources"
+        method: GET
+        user: "admin"
+        password: "admin"
+        return_content: yes
+        force_basic_auth: yes
+      register: datasources
+
+    - name: Set datasource UID fact
+      set_fact:
+        prometheus_datasource_uid: "{{ (datasources.json | selectattr('name', 'equalto', 'Prometheus') | list | first).uid }}"
+
+    - name: Show datasource UID
+      debug:
+        msg: "Prometheus datasource UID: {{ prometheus_datasource_uid }}"
+
+    - name: Create dashboards temp directory
+      delegate_to: localhost
+      run_once: yes
+      become: no
+      file:
+        path: "/tmp/dashboards"
+        state: directory
+        mode: '0755'
+
+    - name: Render dashboard templates with correct datasource UID
+      delegate_to: localhost
+      run_once: yes
+      become: no
+      copy:
+        src: files/dashboards/
+        dest: "/tmp/dashboards/"
+
+    - name: Replace datasourses with real UID
+      delegate_to: localhost
+      run_once: yes
+      become: no
+      replace:
+        path: "{{ item }}"
+        regexp: '\${ds_prometheus}|\${DS_PROMETHEUS}|\${DS_THEMIS}'
+        replace: '{{ prometheus_datasource_uid }}'
+        backup: no
+      loop: "{{ q('fileglob', '/tmp/dashboards/*.json') }}"
+
+    - name: Upload customized dashboards
+      uri:
+        url: "http://localhost:3000/api/dashboards/db"
+        method: POST
+        user: "admin"
+        password: "admin"
+        force_basic_auth: yes
+        status_code: 200
+        body_format: json
+        body:
+          dashboard: "{{ lookup('file', item) | from_json }}"
+          overwrite: true
+      loop: "{{ q('fileglob', '/tmp/dashboards/*.json') }}"
+         
