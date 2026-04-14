@@ -1,0 +1,33 @@
+# Terraform
+
+*.tfstate*
+*.tfplan*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars.json
+
+# Ansible
+
+vault*.yml
+*vault.yml
+hosts.ini
+inventory.ini
+*.retry
+
+# Секреты и ключи
+
+*.pem
+*.key
+id_*
+.ssh/
+
+# ОС и редакторы
+
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
